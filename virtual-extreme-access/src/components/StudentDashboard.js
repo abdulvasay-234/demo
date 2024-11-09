@@ -1,7 +1,10 @@
-// src/components/StudentDashboard.js
 import React, { useEffect, useState } from 'react';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../firebase';
+import { PDFDocument, rgb } from 'pdf-lib';
+import fontkit from '@pdf-lib/fontkit';
+import customFont from '../assets/Poppins-Medium.ttf'; 
+import samplePdf from '../assets/cert.pdf';
 
 function StudentDashboard({ user }) {
   const [studentData, setStudentData] = useState(null);
@@ -24,9 +27,49 @@ function StudentDashboard({ user }) {
     window.location.href = 'mailto:faculty@lords.ac.in?subject=Hall Ticket Request&body=Please approve my hall ticket request.';
   };
 
-  const downloadHallTicket = () => {
-    // Implement the download logic here
-    alert('Downloading hall ticket...');
+  const downloadHallTicket = async () => {
+    try {
+      const pdfBytes = await fetch(samplePdf).then(res => res.arrayBuffer());
+
+      const pdfDoc = await PDFDocument.load(pdfBytes);
+  
+      // Register fontkit
+      pdfDoc.registerFontkit(fontkit);
+  
+      // Load custom font
+      const fontBytes = await fetch(customFont).then((res) => res.arrayBuffer());
+      const font = await pdfDoc.embedFont(fontBytes);
+  
+      const page = pdfDoc.getPage(0);
+      page.drawText(studentData.name, {
+        x: 85,
+        y: 395,
+        size: 18,
+        font: font,
+        color: rgb(0, 0, 0),
+      });
+      page.drawText(studentData.rollNumber, {
+        x: 95,
+        y: 370,
+        size: 18,
+        font: font,
+        color: rgb(0, 0, 0),
+      });
+      const modifiedPdfBytes = await pdfDoc.save();
+      const blob = new Blob([modifiedPdfBytes], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+  
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${studentData.name}_HallTicket.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error downloading hall ticket:', error);
+      alert('Failed to download hall ticket. Please try again.');
+    }
   };
 
   if (!studentData) return <p>Loading...</p>;
